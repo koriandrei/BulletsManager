@@ -36,7 +36,19 @@ include_directories(${SDL2_INCLUDE_DIR})
 
 # Look in the Lesson0 subdirectory to find its CMakeLists.txt so we can build the executable
 
-add_executable(BulletsTest src/main.cpp)
+add_executable(BulletsTest "")
+
+target_sources(BulletsTest 
+	PRIVATE 
+		src/main.cpp 
+		src/Common.cpp
+		src/BulletManager.cpp 
+		src/Graphics.cpp
+	PUBLIC
+		src/Common.h
+		src/BulletManager.h
+		src/Graphics.h
+		)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC SDL2::SDL2)
 

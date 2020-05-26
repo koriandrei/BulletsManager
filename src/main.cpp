@@ -1,117 +1,13 @@
 #include <iostream>
-#include "SDL.h"
 
-#include "SDL_video.h"
+#include "Graphics.h"
 
-class SDLAll
+#include "Common.h"
+
+#include <chrono>
+
+int main(int, char**)
 {
-public:
-	SDLAll()
-	{
-		if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-			return;
-		}
-
-		bWasSdlInitialized = true;
-
-		win = SDL_CreateWindow("Hello World!", 100, 100, 640, 480, SDL_WINDOW_SHOWN);
-		if (win == nullptr)
-		{
-			return;
-		}
-
-		ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-		if (ren == nullptr) 
-		{
-			return;
-		}
-	}
-
-	~SDLAll()
-	{
-		if (bWasSdlInitialized)
-		{
-			if (win != nullptr)
-			{
-				if (ren != nullptr)
-				{
-					SDL_DestroyRenderer(ren);
-				}
-				else
-				{
-					std::cout << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
-				}
-
-				SDL_DestroyWindow(win);
-			}
-			else
-			{
-				std::cout << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
-			}
-
-			SDL_Quit();
-		}
-		else
-		{
-			std::cout << "SDL_Init Error: " << SDL_GetError() << std::endl;
-		}
-	}
-
-	bool bWasSdlInitialized = false;
-	SDL_Window* win = nullptr;
-	SDL_Renderer* ren = nullptr;
-};
-
-struct Vector2
-{
-	int X;
-	int Y;
-};
-
-enum class InputResult
-{
-	None,
-	Exit,
-	LaunchBullet,
-};
-
-InputResult HandleInput(const SDL_Event& Event, Vector2& start, Vector2& end)
-{
-	const bool bIsLeftMouseButton = Event.button.button == SDL_BUTTON_LEFT;
-
-	if (Event.type == SDL_EventType::SDL_KEYDOWN)
-	{
-		if (Event.key.keysym.scancode == SDL_Scancode::SDL_SCANCODE_ESCAPE)
-		{
-			return InputResult::Exit;
-		}
-	}
-
-	if (bIsLeftMouseButton)
-	{
-		const bool bIsButtonDown = Event.type == SDL_EventType::SDL_MOUSEBUTTONDOWN;
-		const bool bIsButtonUp = Event.type == SDL_EventType::SDL_MOUSEBUTTONUP;
-
-		Vector2 Input{ Event.button.x, Event.button.y };
-
-
-		if (bIsButtonDown)
-		{
-			start = Input;
-		}
-
-		if (bIsButtonUp)
-		{
-			end = Input;
-
-			return InputResult::LaunchBullet;
-		}
-	}
-
-	return InputResult::None;
-}
-
-int main(int, char**){
 	SDLAll SDL;
 
 	if (!SDL.bWasSdlInitialized)
@@ -124,35 +20,60 @@ int main(int, char**){
 
 	bool bShouldRun = true;
 	unsigned char TickId = 0;
+
+	constexpr int targetFrameRate = 60;
+
+	constexpr std::chrono::milliseconds targetDeltaTime(1000 / targetFrameRate);
+
+	std::chrono::high_resolution_clock clock;
+
+	WorldState graphicsState;
+
 	while (bShouldRun)
 	{
-		SDL_Renderer* ren = SDL.ren;
+		const auto tickStartTime = clock.now();
 
-		SDL_SetRenderDrawColor(ren, TickId, TickId, TickId, 255);
-		
 		++TickId;
 
-		SDL_Event Event;
-
-		if (SDL_PollEvent(&Event) != 0)
+		while (true)
 		{
-			const InputResult Result = HandleInput(Event, StartInput, EndInput);
+			const InputResult Result = SDL.GetInput(StartInput, EndInput);
 
-			bShouldRun = Result != InputResult::Exit;
+			if (Result == InputResult::None)
+			{
+				break;
+			}
+
+			const auto tickTimeAfterInput = clock.now();
+
+			const bool bHasReceivedExitRequest = Result == InputResult::Exit;
+
+			bShouldRun &= !bHasReceivedExitRequest;
 
 			if (Result == InputResult::LaunchBullet)
 			{
 				std::cout << "Input " << StartInput.X << ":" << StartInput.Y << " to " << EndInput.X << ":" << EndInput.Y << std::endl;
+				graphicsState.walls.push_back({ StartInput, EndInput });
 			}
 		}
 
-		//First clear the renderer
-		SDL_RenderClear(ren);
+		const auto tickTimeAfterHandling = clock.now();
 
-		SDL_RenderPresent(ren);
+		SDL.Render(graphicsState);
 
-		//Take a quick break after all that hard work
-		SDL_Delay(16);
+		const auto tickTimeAfterRender = clock.now();
+
+		const auto tickTimeAtTickEnd = clock.now();
+
+		const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(tickTimeAtTickEnd - tickStartTime);
+
+		const auto extraTickTime = targetDeltaTime - elapsedMs;
+
+		if (extraTickTime.count() > 0)
+		{
+			std::cout << "ticked for " << elapsedMs.count() << " sleep for " << extraTickTime.count() << std::endl;
+			SDL.Sleep(extraTickTime.count());
+		}
 	}
 
 	return 0;
