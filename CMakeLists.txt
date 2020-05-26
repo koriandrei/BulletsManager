@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.6)
 project(BulletsTest)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 # Use our modified FindSDL2* modules
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${BulletsTest_SOURCE_DIR}/cmake")
@@ -26,11 +28,20 @@ elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
 	endif()
 endif()
 
-# Look up SDL2 and add the include directory to our include path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/sdl2)
 
+# Look up SDL2 and add the include directory to our include path
 find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIR})
 
 # Look in the Lesson0 subdirectory to find its CMakeLists.txt so we can build the executable
 
-add_subdirectory(src)
+add_executable(BulletsTest src/main.cpp)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC SDL2::SDL2)
+
+get_filename_component(SDL2_LIB_PATH ${SDL2_LIBRARY} DIRECTORY)
+
+add_custom_command(TARGET BulletsTest POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy "${SDL2_LIB_PATH}/SDL2.dll" "${BIN_DIR}/Debug")
+
+# install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${BIN_DIR})
