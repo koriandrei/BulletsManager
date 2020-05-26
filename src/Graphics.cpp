@@ -127,7 +127,7 @@ void SDLAll::Render(const WorldState& worldState)
 
 	for (const WorldState::Bullet& bullet : worldState.bullets)
 	{
-		const SDL_Rect bulletRect{bullet.location.X, bullet.location.Y, 12, 12};
+		const SDL_Rect bulletRect{bullet.location.X - 6, bullet.location.Y - 6, 12, 12};
 
 		SDL_RenderDrawRect(ren, &bulletRect);
 	}
@@ -139,4 +139,3 @@ void SDLAll::Sleep(int millisecondsToSleep)
 {
 	SDL_Delay(millisecondsToSleep);
 }
-

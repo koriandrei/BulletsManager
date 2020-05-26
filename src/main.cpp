@@ -1,8 +1,9 @@
 #include <iostream>
 
-#include "Graphics.h"
-
 #include "Common.h"
+
+#include "Graphics.h"
+#include "BulletManager.h"
 
 #include <chrono>
 
@@ -54,6 +55,16 @@ int main(int, char**)
 			{
 				std::cout << "Input " << StartInput.X << ":" << StartInput.Y << " to " << EndInput.X << ":" << EndInput.Y << std::endl;
 				graphicsState.walls.push_back({ StartInput, EndInput });
+
+				Vector2 hitLocation;
+				if (BulletManager::TryGetCollisionPoint(BulletManager::WallDefinition(Vector2{ 0, 0 }, Vector2{ 1000, 1000 }), BulletManager::BulletDefinition(StartInput, EndInput - StartInput, 0, 1), hitLocation))
+				{
+					graphicsState.bullets.push_back({ hitLocation, {0,0} });
+				}
+				else
+				{
+					std::cout << "No hit" << std::endl;
+				}
 			}
 		}
 
