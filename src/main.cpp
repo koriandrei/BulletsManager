@@ -30,6 +30,8 @@ int main(int, char**)
 
 	WorldState graphicsState;
 
+	const auto appStartTime = clock.now();
+
 	while (bShouldRun)
 	{
 		const auto tickStartTime = clock.now();
@@ -70,7 +72,22 @@ int main(int, char**)
 
 		const auto tickTimeAfterHandling = clock.now();
 
-		SDL.Render(graphicsState);
+		BulletManager bulletManager = BulletManager::CreateManager();
+
+		const auto timeBeforeBulletManagerUpdate = clock.now();
+
+		bulletManager.Update(((float) std::chrono::duration_cast<std::chrono::microseconds>(timeBeforeBulletManagerUpdate - appStartTime).count()) / std::micro::den);
+		
+		const auto timeAfterCalculation = clock.now();
+
+		std::cout << "Calculated for " << (std::chrono::duration_cast<std::chrono::milliseconds>(timeAfterCalculation - timeBeforeBulletManagerUpdate)).count() << std::endl;
+
+		WorldState graphicsState1;
+
+		bulletManager.GenerateState(graphicsState1);
+
+
+		SDL.Render(graphicsState1);
 
 		const auto tickTimeAfterRender = clock.now();
 
@@ -80,9 +97,10 @@ int main(int, char**)
 
 		const auto extraTickTime = targetDeltaTime - elapsedMs;
 
-		if (extraTickTime.count() > 0)
+		//if (extraTickTime.count() > 0)
 		{
 			std::cout << "ticked for " << elapsedMs.count() << " sleep for " << extraTickTime.count() << std::endl;
+			if (extraTickTime.count() > 0)
 			SDL.Sleep(extraTickTime.count());
 		}
 	}

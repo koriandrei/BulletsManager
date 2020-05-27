@@ -19,6 +19,8 @@ struct Vector2
 		return X * X + Y * Y;
 	}
 
+	float GetMagnitude() const;
+
 	Vector2 operator-() const
 	{
 		return { -X, -Y };

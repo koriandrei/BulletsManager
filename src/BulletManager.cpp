@@ -2,6 +2,178 @@
 
 #include <cmath>
 
+#include "Graphics.h"
+
+static std::vector<BulletManager::Wall> CreateWallDefinitions()
+{
+	std::vector<BulletManager::Wall> walls;
+
+	constexpr int wallsToGenerate = 1000;
+
+	for (int wallIndex = 0; wallIndex < wallsToGenerate; ++wallIndex)
+	{
+		const float index11 = static_cast<float>(wallIndex * 2);
+
+		const BulletManager::Wall wall{ BulletManager::WallDefinition(Vector2{index11, 10}, Vector2{index11, 20}) };
+
+		walls.push_back(wall);
+	}
+
+	return walls;
+}
+
+static std::vector<BulletManager::Bullet> CreateBulletDefinitions()
+{
+	std::vector<BulletManager::Bullet> bullets;
+
+	constexpr int bulletsToGenerate = 1000;
+
+	const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>(500), 15}, Vector2{1, 0}, 0, 1000) };
+
+	bullets.push_back(bullet);
+
+	for (int bulletIndex = 0; bulletIndex < bulletsToGenerate - 1; ++bulletIndex)
+	{
+		const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>(bulletIndex), 30}, Vector2{0, 1}, 0, 1000) };
+
+		bullets.push_back(bullet);
+	}
+
+	return bullets;
+}
+
+
+
+BulletManager BulletManager::CreateManager()
+{
+	static std::vector<Wall> walls = CreateWallDefinitions();
+
+	static std::vector<Bullet> bullets = CreateBulletDefinitions();
+
+	BulletManager manager;
+	manager.walls = walls;
+	manager.bullets = bullets;
+	return manager;
+}
+
+void BulletManager::GenerateState(WorldState& outGraphicsState) const
+{
+	for (const auto& bullet : bullets)
+	{
+		outGraphicsState.bullets.push_back({bullet.definition.startingPosition + bullet.definition.velocity * currentTime, bullet.definition.velocity});
+	}
+
+	for (const auto& wall : walls)
+	{
+		if (wall.timeDestroyed > 0)
+		{
+			continue;
+		}
+
+		outGraphicsState.walls.push_back({ wall.definition.start, wall.definition.end });
+	}
+}
+
+void BulletManager::Update(const float time)
+{
+	currentTime = time;
+
+	struct WvsB
+	{
+		int bulletIndex = -1;
+		float time = std::numeric_limits<float>::max();
+	};
+
+	struct BvsW
+	{
+		int wallIndex = -1;
+		float time = std::numeric_limits<float>::max();
+	};
+
+	std::vector<WvsB> wallVsBullets(walls.size());
+	
+	std::vector<BvsW> bulletsVsWall(bullets.size());
+	
+
+	for (int bulletIndex = 0; bulletIndex < bullets.size(); ++bulletIndex)
+	{
+		const Bullet& bullet = bullets[bulletIndex];
+
+		const float bulletTravelDistanceSquare = bullet.definition.velocity.GetSquareMagnitude() * time * time;
+
+		for (int wallIndex = 0; wallIndex < walls.size(); ++wallIndex)
+		{
+			const Wall& wall = walls[wallIndex];
+
+			const Vector2 fromWall1ToBullet = wall.definition.start - bullet.definition.startingPosition;
+			
+			// bad estimate
+			if (fromWall1ToBullet.GetSquareMagnitude() > bulletTravelDistanceSquare)
+			{
+				continue;
+			}
+
+			const Vector2 fromWall2ToBullet = wall.definition.end - bullet.definition.startingPosition;
+
+			// bad estimate
+			if (fromWall2ToBullet.GetSquareMagnitude() > bulletTravelDistanceSquare)
+			{
+				continue;
+			}
+
+			float timeToHit;
+			if (TryGetTimeDestroyed(wall.definition, bullet.definition, timeToHit) && timeToHit < time)
+			{
+				WvsB& data = wallVsBullets[wallIndex];
+
+				if (timeToHit < data.time)
+				{
+					data.time = timeToHit;
+					data.bulletIndex = bulletIndex;
+				}
+			}
+		}
+	}
+	
+	for (int wallIndex = 0; wallIndex < walls.size(); ++wallIndex)
+	{
+		WvsB& data = wallVsBullets[wallIndex];
+
+		if (data.bulletIndex < 0)
+		{
+			continue;
+		}
+
+		BvsW& bulletData = bulletsVsWall[data.bulletIndex];
+
+		if (data.time < bulletData.time)
+		{
+			bulletData.time = data.time;
+			bulletData.wallIndex = wallIndex;
+		}
+	}
+
+	for (int bulletIndex = 0; bulletIndex < bullets.size(); ++bulletIndex)
+	{
+		BvsW& bulletData = bulletsVsWall[bulletIndex];
+
+		if (bulletData.wallIndex < 0)
+		{
+			continue;
+		}
+
+		Wall& wall = walls[bulletData.wallIndex];
+		
+		wall.timeDestroyed = bulletData.time;
+	}
+}
+
+void BulletManager::UpdateFromTo(std::vector<Wall>& walls, std::vector<Bullet>& bullets, const float timeFrom, const float timeTo) const
+{
+
+}
+
+
 bool BulletManager::TryGetTimeDestroyed(WallDefinition wall, BulletDefinition bullet, float& outTime)
 {
 	if (bullet.velocity.Equals(Vector2::Zero) || wall.change.Equals(Vector2::Zero))

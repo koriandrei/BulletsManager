@@ -7,11 +7,16 @@
 class BulletManager
 {
 public:
+	static BulletManager CreateManager();
+
 	void Update(float time);
+
 
 	void AddWall(const Vector2& start, const Vector2& end);
 
 	void AddBullet(const Vector2& position, const Vector2& velocity, float time, float lifetime);
+
+	void GenerateState(struct WorldState& outGraphicsState) const;
 
 	struct WallDefinition
 	{
@@ -19,12 +24,12 @@ public:
 		{
 		}
 
-		const Vector2 start;
-		const Vector2 end;
+		Vector2 start;
+		Vector2 end;
 
-		const Vector2 change;
+		Vector2 change;
 
-		const float freeTerm;
+		float freeTerm;
 	};
 
 	struct BulletDefinition
@@ -33,22 +38,22 @@ public:
 		{
 		}
 
-		const Vector2 startingPosition;
-		const Vector2 velocity;
-		const float startTime;
-		const float lifetime;
+		Vector2 startingPosition;
+		Vector2 velocity;
+		float startTime;
+		float lifetime;
 	};
 
 	struct Wall
 	{
-		const WallDefinition definition;
+		WallDefinition definition;
 
-		float timeDestroyed = 0;
+		float timeDestroyed = -1;
 	};
 
 	struct Bullet
 	{
-		const BulletDefinition definition;
+		BulletDefinition definition;
 	};
 
 	static bool TryGetTimeDestroyed(WallDefinition wall, BulletDefinition bullet, float& outTime);
@@ -58,7 +63,11 @@ public:
 	static Vector2 EvaluateBulletLocation(BulletDefinition bullet, float time);
 
 private:
+	void UpdateFromTo(std::vector<Wall>& walls, std::vector<Bullet>& bullets, float timeFrom, float timeTo) const;
+
 	static bool TryGetCollinearBulletCollisionTime(WallDefinition wall, BulletDefinition bullet, float& outTime);
+
+	float currentTime = 0;
 
 	std::vector<Wall> walls;
 
