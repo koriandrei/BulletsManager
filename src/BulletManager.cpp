@@ -60,12 +60,12 @@ void BulletManager::GenerateState(WorldState& outGraphicsState) const
 {
 	for (const auto& bullet : bullets)
 	{
-		outGraphicsState.bullets.push_back({bullet.definition.startingPosition + bullet.definition.velocity * currentTime, bullet.definition.velocity});
+		outGraphicsState.bullets.push_back({bullet.definition.startingPosition + bullet.definition.velocity * (currentTime - bullet.definition.startTime), bullet.definition.velocity});
 	}
 
 	for (const auto& wall : walls)
 	{
-		if (wall.timeDestroyed > 0)
+		if (wall.timeDestroyed >= 0)
 		{
 			continue;
 		}
@@ -90,81 +90,104 @@ void BulletManager::Update(const float time)
 		float time = std::numeric_limits<float>::max();
 	};
 
-	std::vector<WvsB> wallVsBullets(walls.size());
-	
-	std::vector<BvsW> bulletsVsWall(bullets.size());
-	
-
-	for (int bulletIndex = 0; bulletIndex < bullets.size(); ++bulletIndex)
+	while (true)
 	{
-		const Bullet& bullet = bullets[bulletIndex];
 
-		const float bulletTravelDistanceSquare = bullet.definition.velocity.GetSquareMagnitude() * time * time;
+		std::vector<WvsB> wallVsBullets(walls.size());
 
-		for (int wallIndex = 0; wallIndex < walls.size(); ++wallIndex)
+		std::vector<BvsW> bulletsVsWall(bullets.size());
+
+		bool bWereAnyCollisionHitsFound = false;
+
+		for (int bulletIndex = 0; bulletIndex < bullets.size(); ++bulletIndex)
 		{
-			const Wall& wall = walls[wallIndex];
+			const Bullet& bullet = bullets[bulletIndex];
 
-			const Vector2 fromWall1ToBullet = wall.definition.start - bullet.definition.startingPosition;
-			
-			// bad estimate
-			if (fromWall1ToBullet.GetSquareMagnitude() > bulletTravelDistanceSquare)
+			const float bulletTravelDistanceSquare = bullet.definition.velocity.GetSquareMagnitude() * time * time;
+
+			for (int wallIndex = 0; wallIndex < walls.size(); ++wallIndex)
 			{
-				continue;
-			}
+				const Wall& wall = walls[wallIndex];
 
-			const Vector2 fromWall2ToBullet = wall.definition.end - bullet.definition.startingPosition;
-
-			// bad estimate
-			if (fromWall2ToBullet.GetSquareMagnitude() > bulletTravelDistanceSquare)
-			{
-				continue;
-			}
-
-			float timeToHit;
-			if (TryGetTimeDestroyed(wall.definition, bullet.definition, timeToHit) && timeToHit < time)
-			{
-				WvsB& data = wallVsBullets[wallIndex];
-
-				if (timeToHit < data.time)
+				if (wall.timeDestroyed >= 0)
 				{
-					data.time = timeToHit;
-					data.bulletIndex = bulletIndex;
+					continue;
+				}
+
+				const Vector2 fromWall1ToBullet = wall.definition.start - bullet.definition.startingPosition;
+
+				// bad estimate
+				if (fromWall1ToBullet.GetSquareMagnitude() > bulletTravelDistanceSquare)
+				{
+					continue;
+				}
+
+				const Vector2 fromWall2ToBullet = wall.definition.end - bullet.definition.startingPosition;
+
+				// bad estimate
+				if (fromWall2ToBullet.GetSquareMagnitude() > bulletTravelDistanceSquare)
+				{
+					continue;
+				}
+
+				float timeToHit;
+				if (TryGetTimeDestroyed(wall.definition, bullet.definition, timeToHit) && timeToHit < time)
+				{
+					WvsB& data = wallVsBullets[wallIndex];
+
+					if (timeToHit < data.time)
+					{
+						bWereAnyCollisionHitsFound = true;
+						data.time = timeToHit;
+						data.bulletIndex = bulletIndex;
+					}
 				}
 			}
 		}
-	}
-	
-	for (int wallIndex = 0; wallIndex < walls.size(); ++wallIndex)
-	{
-		WvsB& data = wallVsBullets[wallIndex];
 
-		if (data.bulletIndex < 0)
+		if (!bWereAnyCollisionHitsFound)
 		{
-			continue;
+			break;
 		}
 
-		BvsW& bulletData = bulletsVsWall[data.bulletIndex];
-
-		if (data.time < bulletData.time)
+		for (int wallIndex = 0; wallIndex < walls.size(); ++wallIndex)
 		{
-			bulletData.time = data.time;
-			bulletData.wallIndex = wallIndex;
+			WvsB& data = wallVsBullets[wallIndex];
+
+			if (data.bulletIndex < 0)
+			{
+				continue;
+			}
+
+			BvsW& bulletData = bulletsVsWall[data.bulletIndex];
+
+			if (data.time < bulletData.time)
+			{
+				bulletData.time = data.time;
+				bulletData.wallIndex = wallIndex;
+			}
 		}
-	}
 
-	for (int bulletIndex = 0; bulletIndex < bullets.size(); ++bulletIndex)
-	{
-		BvsW& bulletData = bulletsVsWall[bulletIndex];
-
-		if (bulletData.wallIndex < 0)
+		for (int bulletIndex = 0; bulletIndex < bullets.size(); ++bulletIndex)
 		{
-			continue;
-		}
+			BvsW& bulletData = bulletsVsWall[bulletIndex];
 
-		Wall& wall = walls[bulletData.wallIndex];
-		
-		wall.timeDestroyed = bulletData.time;
+			if (bulletData.wallIndex < 0)
+			{
+				continue;
+			}
+
+			Bullet& bullet = bullets[bulletIndex];
+
+			bullet.definition.startingPosition = EvaluateBulletLocation(bullet.definition, bulletData.time);
+			bullet.definition.startTime = bulletData.time;
+			// TODO: rewrite normal bounce calculation
+			bullet.definition.velocity.X = -bullet.definition.velocity.X;
+
+			Wall& wall = walls[bulletData.wallIndex];
+
+			wall.timeDestroyed = bulletData.time;
+		}
 	}
 }
 
