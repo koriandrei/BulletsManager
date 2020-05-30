@@ -4,11 +4,16 @@
 
 #include "Graphics.h"
 
+namespace
+{
+	constexpr int wallsToGenerate = 500;
+	constexpr int bulletsToGenerate = 1000;
+}
+
 static std::vector<BulletManager::Wall> CreateWallDefinitions()
 {
 	std::vector<BulletManager::Wall> walls;
 
-	constexpr int wallsToGenerate = 1000;
 
 	for (int wallIndex = 0; wallIndex < wallsToGenerate; ++wallIndex)
 	{
@@ -26,15 +31,13 @@ static std::vector<BulletManager::Bullet> CreateBulletDefinitions()
 {
 	std::vector<BulletManager::Bullet> bullets;
 
-	constexpr int bulletsToGenerate = 1000;
-
-	const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>(500), 15}, Vector2{1, 0}, 0, 1000) };
+	const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>(wallsToGenerate), 15}, Vector2{-1000, 0}, 0, 1000) };
 
 	bullets.push_back(bullet);
 
 	for (int bulletIndex = 0; bulletIndex < bulletsToGenerate - 1; ++bulletIndex)
 	{
-		const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>(bulletIndex), 30}, Vector2{0, 1}, 0, 1000) };
+		const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>(bulletIndex), 30}, Vector2{0, 10}, 0, 1000) };
 
 		bullets.push_back(bullet);
 	}
@@ -76,7 +79,6 @@ void BulletManager::GenerateState(WorldState& outGraphicsState) const
 
 void BulletManager::Update(const float time)
 {
-	currentTime = time;
 
 	struct WvsB
 	{
@@ -103,29 +105,11 @@ void BulletManager::Update(const float time)
 		{
 			const Bullet& bullet = bullets[bulletIndex];
 
-			const float bulletTravelDistanceSquare = bullet.definition.velocity.GetSquareMagnitude() * time * time;
-
 			for (int wallIndex = 0; wallIndex < walls.size(); ++wallIndex)
 			{
 				const Wall& wall = walls[wallIndex];
 
-				if (wall.timeDestroyed >= 0)
-				{
-					continue;
-				}
-
-				const Vector2 fromWall1ToBullet = wall.definition.start - bullet.definition.startingPosition;
-
-				// bad estimate
-				if (fromWall1ToBullet.GetSquareMagnitude() > bulletTravelDistanceSquare)
-				{
-					continue;
-				}
-
-				const Vector2 fromWall2ToBullet = wall.definition.end - bullet.definition.startingPosition;
-
-				// bad estimate
-				if (fromWall2ToBullet.GetSquareMagnitude() > bulletTravelDistanceSquare)
+				if (!CanCollide(wall, bullet, currentTime, time))
 				{
 					continue;
 				}
@@ -189,6 +173,8 @@ void BulletManager::Update(const float time)
 			wall.timeDestroyed = bulletData.time;
 		}
 	}
+
+	currentTime = time;
 }
 
 void BulletManager::UpdateFromTo(std::vector<Wall>& walls, std::vector<Bullet>& bullets, const float timeFrom, const float timeTo) const
@@ -267,6 +253,40 @@ bool BulletManager::TryGetCollinearBulletCollisionTime(WallDefinition wall, Bull
 
 	outTime = collisionTime;
 	return true;
+}
+
+bool BulletManager::CanCollide(const Wall& wall, const Bullet& bullet, float startingTime, float targetTime)
+{
+	if (wall.timeDestroyed >= 0)
+	{
+		return false;
+	}
+	
+	const Vector2 fromWallToBullet = wall.definition.start - EvaluateBulletLocation(bullet.definition, startingTime);
+
+	const float bulletMovementTime = targetTime - startingTime;
+
+	const float bulletTravelDistanceSquare = bullet.definition.velocity.GetSquareMagnitude() * bulletMovementTime * bulletMovementTime;
+
+	const float equationA = Vector2::DotProduct(wall.definition.change, wall.definition.change);
+
+	const float equationB = Vector2::DotProduct(wall.definition.change, fromWallToBullet);
+
+	const float equationC = Vector2::DotProduct(fromWallToBullet, fromWallToBullet) - bulletTravelDistanceSquare;
+
+	const float discriminant = equationB * equationB - 4 * equationA * equationC;
+
+	if (discriminant < 0)
+	{
+		return false;
+	}
+
+	const float discriminantRoot = std::sqrtf(discriminant);
+
+	const float t1 = (-equationB - discriminantRoot) / (2 * equationA);
+	const float t2 = (-equationB + discriminantRoot) / (2 * equationA);
+
+	return t1 <= 1 && t2 >= 0;
 }
 
 

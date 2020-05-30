@@ -67,6 +67,8 @@ private:
 
 	static bool TryGetCollinearBulletCollisionTime(WallDefinition wall, BulletDefinition bullet, float& outTime);
 
+	static bool CanCollide(const Wall& wall, const Bullet& bullet, float startingTime, float targetTime);
+
 	float currentTime = 0;
 
 	std::vector<Wall> walls;

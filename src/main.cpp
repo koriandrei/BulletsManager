@@ -32,6 +32,10 @@ int main(int, char**)
 
 	const auto appStartTime = clock.now();
 
+	BulletManager bulletManager = BulletManager::CreateManager();
+	
+	auto tickTimeAtTickEnd = clock.now();
+
 	while (bShouldRun)
 	{
 		const auto tickStartTime = clock.now();
@@ -72,8 +76,6 @@ int main(int, char**)
 
 		const auto tickTimeAfterHandling = clock.now();
 
-		BulletManager bulletManager = BulletManager::CreateManager();
-
 		const auto timeBeforeBulletManagerUpdate = clock.now();
 
 		bulletManager.Update(((float) std::chrono::duration_cast<std::chrono::microseconds>(timeBeforeBulletManagerUpdate - appStartTime).count()) / std::micro::den);
@@ -91,7 +93,7 @@ int main(int, char**)
 
 		const auto tickTimeAfterRender = clock.now();
 
-		const auto tickTimeAtTickEnd = clock.now();
+		tickTimeAtTickEnd = clock.now();
 
 		const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(tickTimeAtTickEnd - tickStartTime);
 

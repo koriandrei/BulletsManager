@@ -40,6 +40,11 @@ struct Vector2
 	{
 		return { X * multiplier, Y * multiplier };
 	}
+
+	static float DotProduct(const Vector2& first, const Vector2& second)
+	{
+		return first.X * second.X + first.Y * second.Y;
+	}
 };
 
 enum class InputResult
