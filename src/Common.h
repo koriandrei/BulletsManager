@@ -36,14 +36,24 @@ struct Vector2
 		return (*this) + (-other);
 	}
 
-	Vector2 operator*(float multiplier) const
+	Vector2 operator*(const float multiplier) const
 	{
 		return { X * multiplier, Y * multiplier };
+	}
+
+	Vector2 operator/(const float divisor) const
+	{
+		return (*this) * (1 / divisor);
 	}
 
 	static float DotProduct(const Vector2& first, const Vector2& second)
 	{
 		return first.X * second.X + first.Y * second.Y;
+	}
+
+	Vector2 Normalized() const
+	{
+		return (*this) / GetMagnitude();
 	}
 };
 

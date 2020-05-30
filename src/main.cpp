@@ -36,6 +36,8 @@ int main(int, char**)
 	
 	auto tickTimeAtTickEnd = clock.now();
 
+	constexpr auto maxSimulationTickDuration = std::chrono::seconds(1);
+
 	while (bShouldRun)
 	{
 		const auto tickStartTime = clock.now();
@@ -78,7 +80,11 @@ int main(int, char**)
 
 		const auto timeBeforeBulletManagerUpdate = clock.now();
 
-		bulletManager.Update(((float) std::chrono::duration_cast<std::chrono::microseconds>(timeBeforeBulletManagerUpdate - appStartTime).count()) / std::micro::den);
+		const auto actualDeltaTime = timeBeforeBulletManagerUpdate - appStartTime;
+
+		const auto deltaTimeForSimulation = 100 * ( actualDeltaTime < maxSimulationTickDuration ? actualDeltaTime : maxSimulationTickDuration);
+		
+		bulletManager.Update(((float) std::chrono::duration_cast<std::chrono::microseconds>(deltaTimeForSimulation).count()) / std::micro::den);
 		
 		const auto timeAfterCalculation = clock.now();
 
@@ -103,7 +109,9 @@ int main(int, char**)
 		{
 			std::cout << "ticked for " << elapsedMs.count() << " sleep for " << extraTickTime.count() << std::endl;
 			if (extraTickTime.count() > 0)
-			SDL.Sleep(extraTickTime.count());
+			{
+				SDL.Sleep(extraTickTime.count());
+			}
 		}
 	}
 

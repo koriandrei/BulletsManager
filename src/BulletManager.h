@@ -20,7 +20,7 @@ public:
 
 	struct WallDefinition
 	{
-		WallDefinition(const Vector2& inStart, const Vector2& inEnd) : start(inStart), end(inEnd), change(inStart - inEnd), freeTerm(inStart.X * inEnd.Y - inStart.Y * inEnd.X)
+		WallDefinition(const Vector2& inStart, const Vector2& inEnd) : start(inStart), end(inEnd), change(inEnd - inStart), freeTerm(inStart.X * inEnd.Y - inStart.Y * inEnd.X)
 		{
 		}
 
@@ -55,6 +55,10 @@ public:
 	{
 		BulletDefinition definition;
 	};
+
+	struct FilterStage;
+
+	struct ApplyBulletStage;
 
 	static bool TryGetTimeDestroyed(WallDefinition wall, BulletDefinition bullet, float& outTime);
 
