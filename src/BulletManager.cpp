@@ -10,8 +10,8 @@
 
 namespace
 {
-	constexpr int wallsToGenerate = 600;
-	constexpr int bulletsToGenerate = 10;
+	constexpr int wallsToGenerate = 5000;
+	constexpr int bulletsToGenerate = 1000;
 }
 
 static std::vector<BulletManager::Wall> CreateWallDefinitions()
@@ -41,9 +41,9 @@ static std::vector<BulletManager::Bullet> CreateBulletDefinitions()
 
 	//bullets.push_back(bullet);
 
-	for (int bulletIndex = 0; bulletIndex < bulletsToGenerate - 1; ++bulletIndex)
+	for (int bulletIndex = 0; bulletIndex < bulletsToGenerate; ++bulletIndex)
 	{
-		const float index12 = static_cast<float>(bulletIndex % 10) * 10;
+		const float index12 = static_cast<float>(bulletIndex % 10) * 10;// +10;
 		//const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>(bulletIndex), 30}, Vector2{0, 10}, 0, 1000) };
 		const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>((wallsToGenerate/* + bulletIndex*/)), index12 + 15}, Vector2{static_cast<float>(10), 0}, 0, 1000) };
 
@@ -416,6 +416,33 @@ bool BulletManager::TryGetTimeDestroyed(WallDefinition wall, BulletDefinition bu
 		const float numerator = wall.change.X * bullet.startingPosition.Y - wall.change.Y * bullet.startingPosition.X + wall.freeTerm;
 
 		collisionTime = numerator / denominator;
+
+		struct NormalizedWallLocationHelper
+		{
+			NormalizedWallLocationHelper(float Vector2::* memberToUse) : memberToUse(memberToUse){}
+
+			float GetVectorComponent(const Vector2& vector) const
+			{
+				return vector.*memberToUse;
+			}
+
+			float GetWallLocation(const WallDefinition& wall, const BulletDefinition& bullet, float collisionTime)
+			{
+				return (GetVectorComponent(bullet.startingPosition) + GetVectorComponent(bullet.velocity) * collisionTime - GetVectorComponent(wall.start)) / GetVectorComponent(wall.change);
+			}
+
+			float Vector2::* memberToUse;
+		};
+
+		float Vector2::* const ComponentToUse = std::abs(wall.change.X) < 0.0001f ? &Vector2::Y : &Vector2::X;
+
+		const float normalizedWallLocation = NormalizedWallLocationHelper(ComponentToUse).GetWallLocation(wall, bullet, collisionTime);
+
+		if (normalizedWallLocation < 0 || normalizedWallLocation > 1)
+		{
+			// bullet didn't actually hit the wall
+			return false;
+		}
 	}
 
 	if (collisionTime >= 0 && collisionTime < bullet.lifetime)

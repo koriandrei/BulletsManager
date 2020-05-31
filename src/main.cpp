@@ -82,7 +82,7 @@ int main(int, char**)
 
 		const auto actualDeltaTime = timeBeforeBulletManagerUpdate - appStartTime;
 
-		const auto deltaTimeForSimulation = 100 * ( actualDeltaTime < maxSimulationTickDuration ? actualDeltaTime : maxSimulationTickDuration);
+		const auto deltaTimeForSimulation = ( actualDeltaTime < maxSimulationTickDuration ? actualDeltaTime : maxSimulationTickDuration);
 		
 		bulletManager.Update(((float) std::chrono::duration_cast<std::chrono::microseconds>(deltaTimeForSimulation).count()) / std::micro::den);
 		
