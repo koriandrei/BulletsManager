@@ -55,6 +55,11 @@ struct Vector2
 	{
 		return (*this) / GetMagnitude();
 	}
+
+	Vector2 GetNormal() const
+	{
+		return Vector2{Y, -X};
+	}
 };
 
 enum class InputResult

@@ -259,16 +259,20 @@ struct BulletManager::ApplyBulletStage
 				continue;
 			}
 
+			Wall& wall = setup.walls[bulletData.wallIndex];
+
+			wall.timeDestroyed = bulletData.time;
+
 			Bullet& bullet = setup.bullets[bulletIndex];
 
 			bullet.definition.startingPosition = EvaluateBulletLocation(bullet.definition, bulletData.time);
 			bullet.definition.startTime = bulletData.time;
-			// TODO: rewrite normal bounce calculation
-			bullet.definition.velocity.X = -bullet.definition.velocity.X;
 
-			Wall& wall = setup.walls[bulletData.wallIndex];
+			const Vector2 normal = wall.definition.change.GetNormal().Normalized();
 
-			wall.timeDestroyed = bulletData.time;
+			const Vector2 reflectedVelocity = bullet.definition.velocity - normal * (2 * Vector2::DotProduct(bullet.definition.velocity, normal));
+
+			bullet.definition.velocity = reflectedVelocity;
 		}
 	}
 
