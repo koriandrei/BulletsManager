@@ -1,4 +1,4 @@
-# BulletsManager
+﻿# BulletsManager
 
 This is a toy problem.
 
@@ -15,7 +15,7 @@ The solution should use all available threads/cores.
 
 ## TODO
 
-* Loading the set of wall from a file
+* Loading the set of wall from a file ✔
 * Pausing and continuing the simulation
 * Navigation on the simulation field
 * Implement a threadpool, check performance

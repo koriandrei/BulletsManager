@@ -10,64 +10,21 @@
 
 #include "Graphics.h"
 
-namespace
+BulletManager::BulletManager(const std::vector<WallDefinition>& inWallDefinitions, const std::vector<BulletDefinition>& inBulletDefinitions)
 {
-	constexpr int wallsToGenerate = 5000;
-	constexpr int bulletsToGenerate = 1000;
-}
-
-static std::vector<BulletManager::Wall> CreateWallDefinitions()
-{
-	std::vector<BulletManager::Wall> walls;
-
-
-	for (int wallIndex = 0; wallIndex < wallsToGenerate; ++wallIndex)
+	walls.reserve(inWallDefinitions.size());
+	for (const WallDefinition& wallDefinition : inWallDefinitions)
 	{
-		const float index11 = static_cast<float>(wallIndex * 2);
-
-		const float index12 = static_cast<float>(wallIndex % 10) * 10;
-
-		const BulletManager::Wall wall{ BulletManager::WallDefinition(Vector2{index11, index12 + 10}, Vector2{index11, index12 + 20}) };
-
-		walls.push_back(wall);
+		walls.push_back({ wallDefinition });
 	}
 
-	return walls;
-}
-
-static std::vector<BulletManager::Bullet> CreateBulletDefinitions()
-{
-	std::vector<BulletManager::Bullet> bullets;
-
-	//const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>(wallsToGenerate), 15}, Vector2{-1000, 0}, 0, 1000) };
-
-	//bullets.push_back(bullet);
-
-	for (int bulletIndex = 0; bulletIndex < bulletsToGenerate; ++bulletIndex)
+	bullets.reserve(inBulletDefinitions.size());
+	for (const BulletDefinition& bulletDefinition : inBulletDefinitions)
 	{
-		const float index12 = static_cast<float>(bulletIndex % 10) * 10;// +10;
-		//const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>(bulletIndex), 30}, Vector2{0, 10}, 0, 1000) };
-		const BulletManager::Bullet bullet{ BulletManager::BulletDefinition(Vector2{static_cast<float>((wallsToGenerate/* + bulletIndex*/)), index12 + 15}, Vector2{static_cast<float>(10), 0}, 0, 1000) };
-
-		bullets.push_back(bullet);
+		bullets.push_back({ bulletDefinition });
 	}
-
-	return bullets;
 }
 
-
-
-BulletManager BulletManager::CreateManager()
-{
-	static std::vector<Wall> walls = CreateWallDefinitions();
-
-	static std::vector<Bullet> bullets = CreateBulletDefinitions();
-
-	BulletManager manager;
-	manager.walls = walls;
-	manager.bullets = bullets;
-	return manager;
-}
 
 void BulletManager::AddBullet(const Vector2& position, const Vector2& velocity, float time, float lifetime)
 {

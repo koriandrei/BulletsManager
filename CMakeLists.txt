@@ -38,6 +38,11 @@ include_directories(${SDL2_INCLUDE_DIR})
 
 add_executable(BulletsTest "")
 
+target_include_directories(BulletsTest 
+	PUBLIC
+		third_party/
+	)
+
 target_sources(BulletsTest 
 	PRIVATE 
 		src/main.cpp 
@@ -48,7 +53,7 @@ target_sources(BulletsTest
 		src/Common.h
 		src/BulletManager.h
 		src/Graphics.h
-		)
+	)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC SDL2::SDL2)
 

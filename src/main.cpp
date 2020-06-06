@@ -7,6 +7,20 @@
 
 #include <chrono>
 
+#include <fstream>
+
+#include "nlohmann/json.hpp"
+
+static void from_json(const nlohmann::json& j, Vector2& outVector)
+{
+	outVector = Vector2{ j["x"].get<float>(), j["y"].get<float>() };
+}
+
+static void from_json(const nlohmann::json& j, BulletManager::WallDefinition& outWallDefinition)
+{
+	outWallDefinition = BulletManager::WallDefinition(j["start"].get<Vector2>(), j["end"].get<Vector2>());
+}
+
 int main(int, char**)
 {
 	GraphicsSystem SDL;
@@ -32,11 +46,35 @@ int main(int, char**)
 
 	const auto appStartTime = clock.now();
 
-	BulletManager bulletManager = BulletManager::CreateManager();
 	
 	auto tickTimeAtTickEnd = clock.now();
 
 	constexpr auto maxSimulationTickDuration = std::chrono::seconds(1);
+
+	const std::string wallsSetupFilePath("walls.json");
+
+	std::ifstream wallsSetupInputStream(wallsSetupFilePath);
+
+	nlohmann::json wallSetupJson;
+
+	if (wallsSetupInputStream)
+	{
+		wallsSetupInputStream >> wallSetupJson;
+	}
+
+	std::vector<BulletManager::WallDefinition> walls;
+
+	if (wallSetupJson.is_array())
+	{
+		walls = wallSetupJson.get<std::vector<BulletManager::WallDefinition>>();
+	}
+
+	if (walls.size() == 0)
+	{
+		walls.push_back(BulletManager::WallDefinition({ 10, 100 }, { 100, 100 }));
+	}
+
+	BulletManager bulletManager(walls, {});
 
 	while (bShouldRun)
 	{

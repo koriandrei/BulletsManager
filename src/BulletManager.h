@@ -9,20 +9,11 @@
 class BulletManager
 {
 public:
-	static BulletManager CreateManager();
-
-	void Update(float time);
-
-
-	void AddWall(const Vector2& start, const Vector2& end);
-
-	void AddBullet(const Vector2& position, const Vector2& velocity, float time, float lifetime);
-
-	void GenerateState(struct GraphicsState& outGraphicsState) const;
-
 	struct WallDefinition
 	{
-		WallDefinition(const Vector2& inStart, const Vector2& inEnd) : start(inStart), end(inEnd), change(inEnd - inStart), freeTerm(inStart.X * inEnd.Y - inStart.Y * inEnd.X)
+		WallDefinition() : WallDefinition(Vector2::Zero, Vector2::Zero) {}
+
+		WallDefinition(const Vector2& inStart, const Vector2& inEnd) : start(inStart), end(inEnd), change(inEnd - inStart), freeTerm(inStart.X* inEnd.Y - inStart.Y * inEnd.X)
 		{
 		}
 
@@ -45,6 +36,14 @@ public:
 		float startTime;
 		float lifetime;
 	};
+
+	BulletManager(const std::vector<WallDefinition>& inWallDefinitions, const std::vector<BulletDefinition>& inBulletDefinitions);
+
+	void Update(float time);
+
+	void AddBullet(const Vector2& position, const Vector2& velocity, float time, float lifetime);
+
+	void GenerateState(struct GraphicsState& outGraphicsState) const;
 
 	struct Wall
 	{
