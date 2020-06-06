@@ -12,3 +12,11 @@ When a bullet collides with a wall, the wall should be destroyed and the bullet'
 The task is to write such a simulation and a visualization for it.
 
 The solution should use all available threads/cores.
+
+## TODO
+
+* Loading the set of wall from a file
+* Pausing and continuing the simulation
+* Navigation on the simulation field
+* Implement a threadpool, check performance
+* Add caching for bullet collisions so that results from step 1 could be used in step 2
