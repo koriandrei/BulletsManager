@@ -4,7 +4,7 @@
 
 #include <vector>
 
-struct WorldState
+struct GraphicsState
 {
 	struct Wall
 	{
@@ -22,20 +22,21 @@ struct WorldState
 	std::vector<Bullet> bullets;
 };
 
-class SDLAll
+class GraphicsSystem
 {
 public:
-	SDLAll();
+	GraphicsSystem();
 
-	~SDLAll();
+	~GraphicsSystem();
 
 	InputResult GetInput(Vector2& start, Vector2& end);
 
-	void Render(const WorldState& worldState);
+	void Render(const GraphicsState& GraphicsState);
 
 	void Sleep(int millisecondsToSleep);
 
-	bool bWasSdlInitialized = false;
+	bool bWereGraphicsInitialized = false;
+private:
 	struct SDL_Window* win = nullptr;
 	struct SDL_Renderer* ren = nullptr;
 };

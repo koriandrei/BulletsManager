@@ -5,13 +5,13 @@
 #include <iostream>
 
 
-SDLAll::SDLAll()
+GraphicsSystem::GraphicsSystem()
 {
 	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
 		return;
 	}
 
-	bWasSdlInitialized = true;
+	bWereGraphicsInitialized = true;
 
 	win = SDL_CreateWindow("Hello World!", 100, 100, 640, 480, SDL_WINDOW_SHOWN);
 	if (win == nullptr)
@@ -26,9 +26,9 @@ SDLAll::SDLAll()
 	}
 }
 
-SDLAll::~SDLAll()
+GraphicsSystem::~GraphicsSystem()
 {
-	if (bWasSdlInitialized)
+	if (bWereGraphicsInitialized)
 	{
 		if (win != nullptr)
 		{
@@ -92,7 +92,7 @@ static InputResult GetInputInternal(const SDL_Event& Event, Vector2& start, Vect
 	return InputResult::None;
 }
 
-InputResult SDLAll::GetInput(Vector2& start, Vector2& end)
+InputResult GraphicsSystem::GetInput(Vector2& start, Vector2& end)
 {
 	SDL_Event Event;
 
@@ -109,7 +109,7 @@ InputResult SDLAll::GetInput(Vector2& start, Vector2& end)
 	return InputResult::None;
 }
 
-void SDLAll::Render(const WorldState& worldState)
+void GraphicsSystem::Render(const GraphicsState& GraphicsState)
 {
 	SDL_SetRenderDrawColor(ren, 0,0,0,255);
 
@@ -118,14 +118,14 @@ void SDLAll::Render(const WorldState& worldState)
 
 	SDL_SetRenderDrawColor(ren, 200, 0, 0, 255);
 
-	for (const WorldState::Wall& wall : worldState.walls)
+	for (const GraphicsState::Wall& wall : GraphicsState.walls)
 	{
 		SDL_RenderDrawLine(ren, wall.start.X, wall.start.Y, wall.end.X, wall.end.Y);
 	}
 
 	SDL_SetRenderDrawColor(ren, 0, 255, 0, 255);
 
-	for (const WorldState::Bullet& bullet : worldState.bullets)
+	for (const GraphicsState::Bullet& bullet : GraphicsState.bullets)
 	{
 		const SDL_Rect bulletRect{bullet.location.X - 6, bullet.location.Y - 6, 12, 12};
 
@@ -135,7 +135,7 @@ void SDLAll::Render(const WorldState& worldState)
 	SDL_RenderPresent(ren);
 }
 
-void SDLAll::Sleep(int millisecondsToSleep)
+void GraphicsSystem::Sleep(int millisecondsToSleep)
 {
 	SDL_Delay(millisecondsToSleep);
 }

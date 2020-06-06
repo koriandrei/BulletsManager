@@ -9,9 +9,9 @@
 
 int main(int, char**)
 {
-	SDLAll SDL;
+	GraphicsSystem SDL;
 
-	if (!SDL.bWasSdlInitialized)
+	if (!SDL.bWereGraphicsInitialized)
 	{
 		return 1;
 	}
@@ -28,7 +28,7 @@ int main(int, char**)
 
 	std::chrono::high_resolution_clock clock;
 
-	WorldState graphicsState;
+	GraphicsState graphicsState;
 
 	const auto appStartTime = clock.now();
 
@@ -90,7 +90,7 @@ int main(int, char**)
 
 		std::cout << "Calculated for " << (std::chrono::duration_cast<std::chrono::milliseconds>(timeAfterCalculation - timeBeforeBulletManagerUpdate)).count() << std::endl;
 
-		WorldState graphicsState1;
+		GraphicsState graphicsState1;
 
 		bulletManager.GenerateState(graphicsState1);
 

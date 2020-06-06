@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include <mutex>
+
 class BulletManager
 {
 public:
@@ -16,7 +18,7 @@ public:
 
 	void AddBullet(const Vector2& position, const Vector2& velocity, float time, float lifetime);
 
-	void GenerateState(struct WorldState& outGraphicsState) const;
+	void GenerateState(struct GraphicsState& outGraphicsState) const;
 
 	struct WallDefinition
 	{
@@ -67,6 +69,8 @@ public:
 	static Vector2 EvaluateBulletLocation(BulletDefinition bullet, float time);
 
 private:
+	std::mutex bulletAdditionMutex;
+
 	void UpdateFromTo(std::vector<Wall>& walls, std::vector<Bullet>& bullets, float timeFrom, float timeTo) const;
 
 	static bool TryGetCollinearBulletCollisionTime(WallDefinition wall, BulletDefinition bullet, float& outTime);

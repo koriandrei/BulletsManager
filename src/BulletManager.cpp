@@ -6,6 +6,8 @@
 
 #include <iostream>
 
+#include <functional>
+
 #include "Graphics.h"
 
 namespace
@@ -67,7 +69,14 @@ BulletManager BulletManager::CreateManager()
 	return manager;
 }
 
-void BulletManager::GenerateState(WorldState& outGraphicsState) const
+void BulletManager::AddBullet(const Vector2& position, const Vector2& velocity, float time, float lifetime)
+{
+	std::unique_lock<std::mutex> bulletAdditionLock(bulletAdditionMutex);
+
+	bullets.push_back(Bullet{ BulletDefinition(position, velocity, time, lifetime) });
+}
+
+void BulletManager::GenerateState(GraphicsState& outGraphicsState) const
 {
 	for (const auto& bullet : bullets)
 	{
@@ -85,13 +94,13 @@ void BulletManager::GenerateState(WorldState& outGraphicsState) const
 	}
 }
 
-struct WvsB
+struct WallDestructionData
 {
 	int bulletIndex = -1;
 	float time = std::numeric_limits<float>::max();
 };
 
-struct BvsW
+struct BulletHitData
 {
 	int wallIndex = -1;
 	float time = std::numeric_limits<float>::max();
@@ -195,7 +204,7 @@ struct BulletManager::FilterStage
 				{
 					const int calculatedWallIndex = wallIndex - setup.startWallIndex;
 
-					WvsB& data = calculatedWalls[calculatedWallIndex];
+					WallDestructionData& data = calculatedWalls[calculatedWallIndex];
 
 					if (timeToHit < data.time)
 					{
@@ -212,7 +221,7 @@ struct BulletManager::FilterStage
 
 	Setup setup;
 
-	std::vector<WvsB> calculatedWalls;
+	std::vector<WallDestructionData> calculatedWalls;
 
 	bool bWereAnyCollisionHitsFound = false;
 };
@@ -225,7 +234,7 @@ struct BulletManager::ApplyBulletStage
 			int startBulletIndex,
 		int endBulletIndex,
 
-		const std::vector<BvsW>& bulletsVsWall,
+		const std::vector<BulletHitData>& bulletsVsWall,
 
 		std::vector<Bullet>& bullets,
 
@@ -236,7 +245,7 @@ struct BulletManager::ApplyBulletStage
 		int startBulletIndex;
 		int endBulletIndex;
 
-		const std::vector<BvsW>& bulletsVsWall;
+		const std::vector<BulletHitData>& bulletsVsWall;
 
 		std::vector<Bullet>& bullets;
 
@@ -252,7 +261,7 @@ struct BulletManager::ApplyBulletStage
 	{
 		for (int bulletIndex = setup.startBulletIndex; bulletIndex < setup.endBulletIndex; ++bulletIndex)
 		{
-			const BvsW& bulletData = setup.bulletsVsWall[bulletIndex];
+			const BulletHitData& bulletData = setup.bulletsVsWall[bulletIndex];
 
 			if (bulletData.wallIndex < 0)
 			{
@@ -301,6 +310,14 @@ std::vector<ParallelStage<StageLogic>> RunStage(std::function<StageLogic(int)> a
 	return stages;
 }
 
+template <class TContainer>
+std::pair<int, int> GetInterval(const TContainer& container, int totalParts, int partIndex)
+{
+	const int containerSize = static_cast<int>(container.size());
+
+	return std::make_pair((containerSize * partIndex) / totalParts, (containerSize * (partIndex + 1)) / totalParts);
+}
+
 void BulletManager::Update(const float deltaTime)
 {
 	const float time = currentTime + deltaTime;
@@ -316,20 +333,24 @@ void BulletManager::Update(const float deltaTime)
 
 	std::vector<std::thread> workerThreads(threadsToUse);
 
+	std::unique_lock<std::mutex> bulletsLock(bulletAdditionMutex);
+
 	while (true)
 	{
-		std::vector<WvsB> wallVsBullets(walls.size());
+		std::vector<WallDestructionData> wallVsBullets(walls.size());
 
-		std::vector<BvsW> bulletsVsWall(bullets.size());
+		std::vector<BulletHitData> bulletsVsWall(bullets.size());
 
 		bool bWereAnyCollisionHitsFound = false;
 
 		const int filterStagesCount = threadsToUse;
 
 		auto filterStages = RunStage<FilterStage>([this, filterStagesCount, time](int filterStageIndex) {
-			const int startingWallIndex = (walls.size() * filterStageIndex) / filterStagesCount;
+			const auto interval = GetInterval(walls, filterStagesCount, filterStageIndex);
 
-			const int endWallIndex = (walls.size() * (filterStageIndex + 1)) / filterStagesCount;
+			const int startingWallIndex = interval.first;
+
+			const int endWallIndex = interval.second;
 
 			return FilterStage(FilterStage::Setup(startingWallIndex, endWallIndex, currentTime, time, walls, bullets)); }
 			, filterStagesCount, true);
@@ -343,9 +364,9 @@ void BulletManager::Update(const float deltaTime)
 			{
 				const int actualWallIndex = calculatedWallIndex + stage.setup.startWallIndex;
 
-				const WvsB& calculatedData = stage.calculatedWalls[calculatedWallIndex];
+				const WallDestructionData& calculatedData = stage.calculatedWalls[calculatedWallIndex];
 
-				WvsB& data = wallVsBullets[actualWallIndex];
+				WallDestructionData& data = wallVsBullets[actualWallIndex];
 
 				if (calculatedData.time < data.time)
 				{
@@ -364,14 +385,14 @@ void BulletManager::Update(const float deltaTime)
 
 		for (int wallIndex = 0; wallIndex < walls.size(); ++wallIndex)
 		{
-			WvsB& data = wallVsBullets[wallIndex];
+			WallDestructionData& data = wallVsBullets[wallIndex];
 
 			if (data.bulletIndex < 0)
 			{
 				continue;
 			}
 
-			BvsW& bulletData = bulletsVsWall[data.bulletIndex];
+			BulletHitData& bulletData = bulletsVsWall[data.bulletIndex];
 
 			if (data.time < bulletData.time)
 			{
@@ -383,7 +404,10 @@ void BulletManager::Update(const float deltaTime)
 		const int applyBulletsStagesCount = threadsToUse;
 
 		RunStage<ApplyBulletStage>([this, applyBulletsStagesCount, &bulletsVsWall](int stageIndex)->ApplyBulletStage {
-			ApplyBulletStage Stage(ApplyBulletStage::Setup((bullets.size() * stageIndex) / applyBulletsStagesCount, (bullets.size() * (stageIndex + 1)) / applyBulletsStagesCount, bulletsVsWall, bullets, walls));
+
+			const auto interval = GetInterval(bullets, applyBulletsStagesCount, stageIndex);
+
+			ApplyBulletStage Stage(ApplyBulletStage::Setup(interval.first, interval.second, bulletsVsWall, bullets, walls));
 			return Stage;
 			}, applyBulletsStagesCount, true);
 	}
