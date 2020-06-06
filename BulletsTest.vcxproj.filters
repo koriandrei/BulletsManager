@@ -15,6 +15,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="F:\work\BulletsTest\src\ParallelUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="F:\work\BulletsTest\src\Common.h">
       <Filter>Header Files</Filter>
     </ClInclude>

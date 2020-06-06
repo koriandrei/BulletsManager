@@ -27,6 +27,11 @@ public:
 
 	struct BulletDefinition
 	{
+		BulletDefinition() : BulletDefinition(Vector2::Zero, Vector2::Zero, 0, 0)
+		{
+
+		}
+
 		BulletDefinition(const Vector2& inStartingPosition, const Vector2& inVelocity, float inStartTime, float inLifetime) : startingPosition(inStartingPosition), velocity(inVelocity), startTime(inStartTime), lifetime(inLifetime)
 		{
 		}
@@ -38,6 +43,8 @@ public:
 	};
 
 	BulletManager(const std::vector<WallDefinition>& inWallDefinitions, const std::vector<BulletDefinition>& inBulletDefinitions);
+
+	~BulletManager();
 
 	void Update(float time);
 
@@ -70,15 +77,17 @@ public:
 private:
 	std::mutex bulletAdditionMutex;
 
-	void UpdateFromTo(std::vector<Wall>& walls, std::vector<Bullet>& bullets, float timeFrom, float timeTo) const;
-
 	static bool TryGetCollinearBulletCollisionTime(WallDefinition wall, BulletDefinition bullet, float& outTime);
 
 	static bool CanCollide(const Wall& wall, const Bullet& bullet, float startingTime, float targetTime);
 
 	float currentTime = 0;
 
+	int threadsToUse = -1;
+
 	std::vector<Wall> walls;
 
 	std::vector<Bullet> bullets;
+
+	std::unique_ptr<class ThreadPool> threadPool;
 };

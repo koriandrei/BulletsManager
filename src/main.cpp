@@ -21,6 +21,31 @@ static void from_json(const nlohmann::json& j, BulletManager::WallDefinition& ou
 	outWallDefinition = BulletManager::WallDefinition(j["start"].get<Vector2>(), j["end"].get<Vector2>());
 }
 
+static void from_json(const nlohmann::json& j, BulletManager::BulletDefinition& outBulletDefinition)
+{
+	outBulletDefinition = BulletManager::BulletDefinition(j["start"].get<Vector2>(), j["velocity"].get<Vector2>(), 0, 10);
+}
+
+template <class T>
+static std::vector<T> loadFromJson(std::string jsonPath, std::vector<T> defaultValue)
+{
+	std::ifstream wallsSetupInputStream(jsonPath);
+
+	nlohmann::json wallSetupJson;
+
+	if (wallsSetupInputStream)
+	{
+		wallsSetupInputStream >> wallSetupJson;
+	}
+
+	if (wallSetupJson.is_array())
+	{
+		return wallSetupJson.get<std::vector<T>>();
+	}
+
+	return defaultValue;
+}
+
 int main(int, char**)
 {
 	GraphicsSystem SDL;
@@ -51,30 +76,15 @@ int main(int, char**)
 
 	constexpr auto maxSimulationTickDuration = std::chrono::seconds(1);
 
-	const std::string wallsSetupFilePath("walls.json");
+	const std::string wallSetupFilePath("walls.json");
+	
+	const std::string bulletSetupFilePath("bullets.json");
 
-	std::ifstream wallsSetupInputStream(wallsSetupFilePath);
+	const auto walls = loadFromJson<BulletManager::WallDefinition>(wallSetupFilePath, { BulletManager::WallDefinition({ 10, 100 }, { 100, 100 }) });
 
-	nlohmann::json wallSetupJson;
+	const auto bullets = loadFromJson<BulletManager::BulletDefinition>(bulletSetupFilePath, { });
 
-	if (wallsSetupInputStream)
-	{
-		wallsSetupInputStream >> wallSetupJson;
-	}
-
-	std::vector<BulletManager::WallDefinition> walls;
-
-	if (wallSetupJson.is_array())
-	{
-		walls = wallSetupJson.get<std::vector<BulletManager::WallDefinition>>();
-	}
-
-	if (walls.size() == 0)
-	{
-		walls.push_back(BulletManager::WallDefinition({ 10, 100 }, { 100, 100 }));
-	}
-
-	BulletManager bulletManager(walls, {});
+	BulletManager bulletManager(walls, bullets);
 
 	while (bShouldRun)
 	{
@@ -122,7 +132,11 @@ int main(int, char**)
 
 		const auto deltaTimeForSimulation = ( actualDeltaTime < maxSimulationTickDuration ? actualDeltaTime : maxSimulationTickDuration);
 		
-		bulletManager.Update(((float) std::chrono::duration_cast<std::chrono::microseconds>(deltaTimeForSimulation).count()) / std::micro::den);
+		const float deltaTimeSeconds = ((float)std::chrono::duration_cast<std::chrono::microseconds>(deltaTimeForSimulation).count()) / std::micro::den;
+
+		const float timeDilation = 1.0f;
+
+		bulletManager.Update(timeDilation * deltaTimeSeconds);
 		
 		const auto timeAfterCalculation = clock.now();
 
@@ -148,7 +162,7 @@ int main(int, char**)
 			std::cout << "ticked for " << elapsedMs.count() << " sleep for " << extraTickTime.count() << std::endl;
 			if (extraTickTime.count() > 0)
 			{
-				SDL.Sleep(extraTickTime.count());
+				SDL.Sleep(static_cast<int>(extraTickTime.count()));
 			}
 		}
 	}

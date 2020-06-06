@@ -49,6 +49,7 @@ target_sources(BulletsTest
 		src/Common.cpp
 		src/BulletManager.cpp 
 		src/Graphics.cpp
+		src/ParallelUtils.h
 	PUBLIC
 		src/Common.h
 		src/BulletManager.h
@@ -60,5 +61,3 @@ target_link_libraries(${PROJECT_NAME} PUBLIC SDL2::SDL2)
 get_filename_component(SDL2_LIB_PATH ${SDL2_LIBRARY} DIRECTORY)
 
 add_custom_command(TARGET BulletsTest POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy "${SDL2_LIB_PATH}/SDL2.dll" "${BIN_DIR}/Debug")
-
-# install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${BIN_DIR})

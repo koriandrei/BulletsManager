@@ -10,6 +10,8 @@
 
 #include "Graphics.h"
 
+#include "ParallelUtils.h"
+
 BulletManager::BulletManager(const std::vector<WallDefinition>& inWallDefinitions, const std::vector<BulletDefinition>& inBulletDefinitions)
 {
 	walls.reserve(inWallDefinitions.size());
@@ -23,7 +25,20 @@ BulletManager::BulletManager(const std::vector<WallDefinition>& inWallDefinition
 	{
 		bullets.push_back({ bulletDefinition });
 	}
+
+	constexpr static int defaultThreadsToUse = 4;
+
+	threadsToUse = std::thread::hardware_concurrency();
+
+	if (threadsToUse == 0)
+	{
+		threadsToUse = defaultThreadsToUse;
+	};
+
+	threadPool = std::make_unique<ThreadPool>(threadsToUse);
 }
+
+BulletManager::~BulletManager() = default;
 
 
 void BulletManager::AddBullet(const Vector2& position, const Vector2& velocity, float time, float lifetime)
@@ -37,7 +52,10 @@ void BulletManager::GenerateState(GraphicsState& outGraphicsState) const
 {
 	for (const auto& bullet : bullets)
 	{
-		outGraphicsState.bullets.push_back({bullet.definition.startingPosition + bullet.definition.velocity * (currentTime - bullet.definition.startTime), bullet.definition.velocity});
+		if (bullet.definition.startTime < currentTime && currentTime < (bullet.definition.startTime + bullet.definition.lifetime))
+		{
+			outGraphicsState.bullets.push_back({ bullet.definition.startingPosition + bullet.definition.velocity * (currentTime - bullet.definition.startTime), bullet.definition.velocity });
+		}
 	}
 
 	for (const auto& wall : walls)
@@ -61,47 +79,6 @@ struct BulletHitData
 {
 	int wallIndex = -1;
 	float time = std::numeric_limits<float>::max();
-};
-
-template <class StageLogic>
-struct ParallelStage
-{
-	typedef StageLogic TStage;
-
-	ParallelStage(const TStage& InStage, bool bInUseThread = false) : Stage(InStage), bUseThread(bInUseThread)
-	{
-
-	}
-
-	void StartWork()
-	{
-		if (bUseThread)
-		{
-			StageThread = std::thread(&ParallelStage<StageLogic>::DoWork, this);
-		}
-		else
-		{
-			DoWork();
-		}
-	}
-
-	void DoWork()
-	{
-		Stage.DoWork();
-	}
-
-	void FinishWork()
-	{
-		if (bUseThread)
-		{
-			StageThread.join();
-			StageThread = std::thread();
-		}
-	}
-
-	TStage Stage;
-	bool bUseThread = false;
-	std::thread StageThread;
 };
 
 struct BulletManager::FilterStage
@@ -232,6 +209,11 @@ struct BulletManager::ApplyBulletStage
 			Bullet& bullet = setup.bullets[bulletIndex];
 
 			bullet.definition.startingPosition = EvaluateBulletLocation(bullet.definition, bulletData.time);
+
+			const float timePassedSinceBulletStart = bulletData.time - bullet.definition.startTime;
+
+			bullet.definition.lifetime -= timePassedSinceBulletStart;
+
 			bullet.definition.startTime = bulletData.time;
 
 			const Vector2 normal = wall.definition.change.GetNormal().Normalized();
@@ -245,28 +227,6 @@ struct BulletManager::ApplyBulletStage
 	Setup setup;
 };
 
-template <class StageLogic>
-std::vector<ParallelStage<StageLogic>> RunStage(std::function<StageLogic(int)> allocator, int stagesCount, bool bUseThreads = false)
-{
-	std::vector<ParallelStage<StageLogic>> stages;
-
-	stages.reserve(stagesCount);
-
-	for (int stageIndex = 0; stageIndex < stagesCount; ++stageIndex)
-	{
-		stages.push_back(ParallelStage<StageLogic>(allocator(stageIndex), bUseThreads));
-
-		stages.rbegin()->StartWork();
-	}
-
-	for (int stageIndex = 0; stageIndex < stagesCount; ++stageIndex)
-	{
-		stages[stageIndex].FinishWork();
-	}
-
-	return stages;
-}
-
 template <class TContainer>
 std::pair<int, int> GetInterval(const TContainer& container, int totalParts, int partIndex)
 {
@@ -279,16 +239,9 @@ void BulletManager::Update(const float deltaTime)
 {
 	const float time = currentTime + deltaTime;
 
-	constexpr static int defaultThreadsToUse = 4;
+	ThreadPool& pool = *threadPool;
 
-	int threadsToUse = std::thread::hardware_concurrency();
-
-	if (threadsToUse == 0)
-	{
-		threadsToUse = defaultThreadsToUse;
-	}
-
-	std::vector<std::thread> workerThreads(threadsToUse);
+	//std::vector<std::thread> workerThreads(threadsToUse);
 
 	std::unique_lock<std::mutex> bulletsLock(bulletAdditionMutex);
 
@@ -310,11 +263,11 @@ void BulletManager::Update(const float deltaTime)
 			const int endWallIndex = interval.second;
 
 			return FilterStage(FilterStage::Setup(startingWallIndex, endWallIndex, currentTime, time, walls, bullets)); }
-			, filterStagesCount, true);
+			, filterStagesCount, pool);
 
 		for (const auto& parallelStage : filterStages)
 		{
-			const FilterStage& stage = parallelStage.Stage;
+			const FilterStage& stage = parallelStage;
 
 			bWereAnyCollisionHitsFound |= stage.bWereAnyCollisionHitsFound;
 			for (int calculatedWallIndex = 0; calculatedWallIndex < stage.calculatedWalls.size(); ++calculatedWallIndex)
@@ -360,23 +313,17 @@ void BulletManager::Update(const float deltaTime)
 
 		const int applyBulletsStagesCount = threadsToUse;
 
-		RunStage<ApplyBulletStage>([this, applyBulletsStagesCount, &bulletsVsWall](int stageIndex)->ApplyBulletStage {
+		auto bulletStage = RunStage<ApplyBulletStage>([this, applyBulletsStagesCount, &bulletsVsWall](int stageIndex)->ApplyBulletStage {
 
 			const auto interval = GetInterval(bullets, applyBulletsStagesCount, stageIndex);
 
 			ApplyBulletStage Stage(ApplyBulletStage::Setup(interval.first, interval.second, bulletsVsWall, bullets, walls));
 			return Stage;
-			}, applyBulletsStagesCount, true);
+			}, applyBulletsStagesCount, pool);
 	}
 
 	currentTime = time;
 }
-
-void BulletManager::UpdateFromTo(std::vector<Wall>& walls, std::vector<Bullet>& bullets, const float timeFrom, const float timeTo) const
-{
-
-}
-
 
 bool BulletManager::TryGetTimeDestroyed(WallDefinition wall, BulletDefinition bullet, float& outTime)
 {
@@ -485,6 +432,11 @@ bool BulletManager::CanCollide(const Wall& wall, const Bullet& bullet, float sta
 	}
 
 	if (targetTime < bullet.definition.startTime)
+	{
+		return false;
+	}
+
+	if (bullet.definition.startTime + bullet.definition.lifetime < startingTime)
 	{
 		return false;
 	}
