@@ -18,5 +18,6 @@ The solution should use all available threads/cores.
 * Loading the set of wall from a file ✔
 * Pausing and continuing the simulation
 * Navigation on the simulation field
+* Spatial partitioning
 * Implement a threadpool, check performance ✔ (about a third faster)
 * Add caching for bullet collisions so that results from step 1 could be used in step 2
